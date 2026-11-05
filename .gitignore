@@ -1,0 +1,16 @@
+# secrets, don't commit this
+.env
+
+# virtual environment
+.venv/
+venv/
+
+# leftover junk from running tests / coverage
+__pycache__/
+.coverage
+htmlcov/
+
+# leftover junk from building the package
+build/
+dist/
+*.egg-info/
