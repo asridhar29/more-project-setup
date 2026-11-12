@@ -20,22 +20,59 @@ Two concepts worth explaining if you have not seen them before:
   language.
 """
 
+import codecs
 import glob
 import os
 import re
 
 from tools.security import get_project_directory, is_path_safe, safe_glob_pattern_is_allowed
-from tools.cat import ENCODINGS_TO_TRY
+
+# A byte-order mark (BOM) is a few special bytes some text files start
+# with, which say how the rest of the file is encoded. Checking for
+# one FIRST, before ever trying to decode as UTF-16, is important: the
+# UTF-16 codec raises a confusing error ("stream does not start with
+# BOM") if it is asked to decode a file's lines one at a time (as
+# `.readlines()` does) and that file does not actually start with a
+# UTF-16 BOM. Reading the raw bytes ourselves and checking for a BOM
+# first means we only ever attempt UTF-16 decoding when we already
+# know it is safe to do so.
+UTF16_BOMS = (codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)
 
 
 def _read_lines_of_file(path):
-    r"""Return the lines of a text file, trying each known encoding.
+    r"""Return the lines of a text file, detecting its real encoding first.
 
-    Returns None if the file could not be read with any encoding, so
-    the caller can skip it instead of crashing.
+    Reads the file's raw bytes, then decides how to decode them based
+    on what the first few bytes look like:
+
+    - A UTF-16 byte-order mark (BOM) means it is safe to decode as
+      UTF-16 -- Python uses the BOM to pick the correct byte order and
+      strips it out automatically.
+    - A UTF-8 BOM means it is safe to decode as UTF-8, using the
+      "utf-8-sig" encoding, which also strips the BOM out.
+    - No BOM at all: assume plain UTF-8, by far the most common case
+      for text files that don't start with a BOM.
+
+    Returns None, instead of raising an error, if the file's bytes
+    can't be decoded as text at all (for example, it's a binary file
+    like an image), or if the file can't be opened for some other
+    reason (missing, no permission, etc) -- so the caller can skip it
+    instead of crashing.
 
     >>> lines = _read_lines_of_file("tools/__init__.py")
     >>> "tools package" in "".join(lines)
+    True
+    >>> _read_lines_of_file("tests/fixtures/utf16_sample.txt")
+    ['Hello from a UTF-16 file!']
+    >>> _read_lines_of_file("tests/fixtures/utf8_bom_sample.txt")
+    ['This file has a UTF-8 byte-order mark.']
+
+    A file with no BOM at all, and bytes that are not valid UTF-8
+    either, is skipped cleanly -- `_read_lines_of_file` never even
+    attempts to decode it as UTF-16, since there is no BOM to justify
+    that:
+
+    >>> _read_lines_of_file("tests/fixtures/no_bom_binary.bin") is None
     True
     >>> _read_lines_of_file("tests/fixtures/undecodable.bin") is None
     True
@@ -44,22 +81,35 @@ def _read_lines_of_file(path):
     like no permission to read the file at all) also returns `None`
     instead of crashing. We fake that here with `unittest.mock`, since
     we can't rely on actually having a permission-denied file to test
-    with:
+    with. We patch `'builtins.open'` (not, say, `'tools.grep.open'`)
+    because `open` is a Python builtin that every module shares one
+    single copy of -- patching it there affects this function no
+    matter what name this file happens to have been imported under:
 
     >>> from unittest.mock import patch
-    >>> with patch('tools.grep.open', side_effect=OSError('permission denied')):
+    >>> with patch('builtins.open', side_effect=OSError('permission denied')):
     ...     _read_lines_of_file("tools/__init__.py") is None
     True
     """
-    for encoding in ENCODINGS_TO_TRY:
-        try:
-            with open(path, "r", encoding=encoding) as file:
-                return file.readlines()
-        except UnicodeDecodeError:
-            continue
-        except OSError:
-            return None
-    return None
+    try:
+        with open(path, "rb") as file:
+            raw_bytes = file.read()
+    except OSError:
+        return None
+
+    if raw_bytes.startswith(UTF16_BOMS):
+        encoding = "utf-16"
+    elif raw_bytes.startswith(codecs.BOM_UTF8):
+        encoding = "utf-8-sig"
+    else:
+        encoding = "utf-8"
+
+    try:
+        text = raw_bytes.decode(encoding)
+    except UnicodeDecodeError:
+        return None
+
+    return text.splitlines(keepends=True)
 
 
 def grep(regex, path):
@@ -75,6 +125,17 @@ def grep(regex, path):
     True
     >>> grep("xyz_no_such_text_anywhere_in_this_file_abc", "tools/calculate.py")
     []
+
+    A glob pattern can match more than one file; results from every
+    matching file are combined into one list, each still tagged with
+    its own filename:
+
+    >>> matches = grep("is_path_safe", "tools/*.py")
+    >>> files_matched = set()
+    >>> for line in matches:
+    ...     files_matched.add(line.split(":")[0])
+    >>> len(files_matched) >= 3
+    True
     >>> grep("(", "tools/*.py")
     'Error: invalid regular expression'
     >>> grep("def ", "../*.py")
@@ -83,10 +144,11 @@ def grep(regex, path):
     'Error: no files matched: no_such_file_or_folder/*.py'
 
     A glob pattern can match files `grep` has to skip instead of
-    crashing: `tests/fixtures/pixel.png` and
-    `tests/fixtures/undecodable.bin` are not valid text in UTF-8 or
-    UTF-16, so they are silently skipped, leaving only the real match
-    from the one text file in that folder:
+    crashing: `tests/fixtures/pixel.png`, `tests/fixtures/undecodable.bin`,
+    and `tests/fixtures/no_bom_binary.bin` are none of them valid text
+    (and none of them start with a byte-order mark either), so they
+    are silently skipped, leaving only the real match from the one
+    genuine text file in that folder:
 
     >>> grep("Hello", "tests/fixtures/*")
     ['tests/fixtures/utf16_sample.txt:1:Hello from a UTF-16 file!']
@@ -101,10 +163,19 @@ def grep(regex, path):
     one more individual safety check (`is_path_safe`) before it's
     opened, in case a symbolic link made it secretly point outside the
     project. That is hard to arrange for real in a doctest, so we fake
-    that check failing here with `unittest.mock`:
+    that check failing here with `unittest.mock`. `is_path_safe` was
+    imported into *this* module's own namespace (unlike `open`, it is
+    not a shared builtin), so we patch it there, on a reference to
+    this exact, currently-running module -- `sys.modules[__name__]` --
+    rather than on the fixed string `'tools.grep'`, which can point to
+    a *different* copy of this same file when it's run in certain ways
+    (for example, `python -m doctest` on this file directly imports it
+    under the plain name `"grep"`, not `"tools.grep"`):
 
+    >>> import sys
     >>> from unittest.mock import patch
-    >>> with patch('tools.grep.is_path_safe', return_value=False):
+    >>> this_module = sys.modules[__name__]
+    >>> with patch.object(this_module, 'is_path_safe', return_value=False):
     ...     grep("def calculate", "tools/calculate.py")
     []
     """

@@ -527,10 +527,36 @@ class Chat:
     """
 
     def __init__(self, system=SYSTEM_PROMPT):
-        """Start a new conversation, beginning with one system message.
+        r"""Set up a brand-new, empty conversation.
 
-        Examples of what this sets up are shown in this class's own
-        docstring above (see the `Chat()` calls there).
+        This initializes `self.messages`, the list of dictionaries
+        that *is* the conversation's memory (see `send_message`
+        below) -- every user message, assistant reply, and tool result
+        gets appended to this same list as the conversation goes on.
+
+        `system` is the one instruction that is never shown to the
+        user and is not something the user typed -- it tells the model
+        how to behave (for example, which tools it has and how to
+        treat file contents it reads). It defaults to this project's
+        own `SYSTEM_PROMPT`, but a test or a different use of `Chat`
+        could pass something else in its place.
+
+        Right after this runs, the conversation contains exactly one
+        message, with role `'system'`:
+
+        >>> chat = Chat()
+        >>> len(chat.messages)
+        1
+        >>> chat.messages[0]['role']
+        'system'
+        >>> chat.messages[0]['content'] == SYSTEM_PROMPT
+        True
+
+        A custom `system` message can be used instead of the default:
+
+        >>> custom_chat = Chat(system='Only answer in one word.')
+        >>> custom_chat.messages
+        [{'role': 'system', 'content': 'Only answer in one word.'}]
         """
         self.messages = [{'role': 'system', 'content': system}]
 

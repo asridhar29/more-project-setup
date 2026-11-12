@@ -54,3 +54,27 @@ def test_does_not_crash_on_undecodable_file():
         if "utf16_sample.txt" in line:
             found_the_text_file = True
     assert found_the_text_file is True
+
+
+def test_does_not_crash_on_file_with_no_bom_and_invalid_utf8():
+    # This file's bytes are invalid UTF-8 and do NOT start with any
+    # byte-order mark at all. Trying to blindly decode it as UTF-16
+    # (without first checking for a BOM) would raise a confusing
+    # "stream does not start with BOM" error -- grep must never do
+    # that, and should just skip the file cleanly instead.
+    result = grep("anything", "tests/fixtures/no_bom_binary.bin")
+    assert result == []
+
+
+def test_reads_utf8_file_with_bom():
+    results = grep("byte-order mark", "tests/fixtures/utf8_bom_sample.txt")
+    assert len(results) == 1
+    assert results[0] == "tests/fixtures/utf8_bom_sample.txt:1:This file has a UTF-8 byte-order mark."
+
+
+def test_matches_across_multiple_files():
+    results = grep("is_path_safe", "tools/*.py")
+    files_matched = set()
+    for line in results:
+        files_matched.add(line.split(":")[0])
+    assert len(files_matched) >= 3

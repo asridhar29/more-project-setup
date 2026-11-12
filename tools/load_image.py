@@ -72,11 +72,15 @@ def load_image(chat, path):
     If the file can't actually be read (for example, no permission to
     open it), history is left unchanged and a clear error comes back
     instead of a crash. We fake that failure here with `unittest.mock`
-    so this doctest doesn't depend on real file permissions:
+    so this doctest doesn't depend on real file permissions. We patch
+    `'builtins.open'` (not `'tools.load_image.open'`) because `open` is
+    a Python builtin that every module shares one single copy of, so
+    patching it there works no matter what name this file happens to
+    have been imported under:
 
     >>> from unittest.mock import patch
     >>> another_chat = chat_module.Chat()
-    >>> with patch('tools.load_image.open', side_effect=OSError('permission denied')):
+    >>> with patch('builtins.open', side_effect=OSError('permission denied')):
     ...     load_image(another_chat, "tests/fixtures/pixel.png")
     'Error: could not read file (permission denied)'
     >>> len(another_chat.messages)
