@@ -24,9 +24,23 @@ def test_invalid_regex_gives_clear_error():
     assert result == "Error: invalid regular expression"
 
 
-def test_missing_files_gives_clear_error():
+def test_pattern_matching_zero_files_returns_empty_list():
+    # A valid, safe glob pattern that simply matches nothing (the
+    # folder does not exist at all) is not an error -- it just means
+    # there was nothing to search.
     result = grep("anything", "no_such_folder/*.py")
-    assert result.startswith("Error: no files matched")
+    assert result == []
+
+
+def test_pattern_matching_zero_files_returns_empty_list_even_when_mocked():
+    # Same guarantee as above, but independent of anything on disk:
+    # if glob.glob() itself returns an empty list for any reason, grep
+    # must return [] too, never an error string.
+    from unittest.mock import patch
+
+    with patch("glob.glob", return_value=[]):
+        result = grep("anything", "some/pattern/*.py")
+    assert result == []
 
 
 def test_glob_pattern_that_escapes_project_is_rejected():

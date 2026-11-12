@@ -315,6 +315,7 @@ class FakeFunctionCall:
     """
 
     def __init__(self, name, arguments):
+        """Remember which tool was requested, and its raw JSON arguments."""
         self.name = name
         self.arguments = arguments
 
@@ -335,6 +336,7 @@ class FakeToolCall:
     """
 
     def __init__(self, call_id, name, arguments):
+        """Build one fake tool-call request, with its own id and function details."""
         self.id = call_id
         self.type = "function"
         self.function = FakeFunctionCall(name, arguments)
@@ -377,6 +379,7 @@ class FakeMessage:
     """
 
     def __init__(self, content=None, tool_calls=None):
+        """Store the reply text and/or tool calls this fake message should carry."""
         self.role = "assistant"
         self.content = content
         self.tool_calls = tool_calls
@@ -413,6 +416,7 @@ class FakeChoice:
     """
 
     def __init__(self, message):
+        """Hold the one fake message this fake choice wraps."""
         self.message = message
 
 
@@ -425,6 +429,7 @@ class FakeCompletion:
     """
 
     def __init__(self, message):
+        """Wrap `message` in a one-item `.choices` list, like a real completion."""
         self.choices = [FakeChoice(message)]
 
 
@@ -457,6 +462,7 @@ class FakeCompletionsAPI:
     """
 
     def __init__(self, response_to_return):
+        """Remember the fake response to hand back from every `create()` call."""
         self.response_to_return = response_to_return
         self.last_call_arguments = None
 
@@ -474,6 +480,7 @@ class FakeChatAPI:
     """
 
     def __init__(self, response_to_return):
+        """Build a fake `.completions` object that returns `response_to_return`."""
         self.completions = FakeCompletionsAPI(response_to_return)
 
 
@@ -493,6 +500,7 @@ class FakeGroqClient:
     """
 
     def __init__(self, response_to_return):
+        """Build a fake Groq client whose `.chat.completions.create()` returns `response_to_return`."""
         self.chat = FakeChatAPI(response_to_return)
 
 

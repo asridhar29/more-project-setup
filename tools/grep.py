@@ -176,8 +176,12 @@ def grep(regex, path):
     'Error: invalid regular expression'
     >>> grep("def ", "../*.py")
     'Error: that path or pattern is not allowed'
+
+    A valid, safe glob pattern that matches no files at all is not an
+    error either -- it just means there was nothing to search:
+
     >>> grep("def ", "no_such_file_or_folder/*.py")
-    'Error: no files matched: no_such_file_or_folder/*.py'
+    []
 
     A glob pattern can match files `grep` has to skip instead of
     crashing: `tests/fixtures/pixel.png`, `tests/fixtures/undecodable.bin`,
@@ -236,8 +240,14 @@ def grep(regex, path):
     full_pattern = os.path.join(project_directory, path)
     matching_files = glob.glob(full_pattern)
 
-    if len(matching_files) == 0:
-        return "Error: no files matched: " + path
+    # A valid, safe glob pattern that simply doesn't match anything is
+    # not an error -- it just means there is nothing to search. This
+    # matches the real Unix `grep` command's behavior (no matches
+    # means no output), and keeps this case consistent with every
+    # other "nothing to report" case below (no searchable files,
+    # files with no matching text, and so on), which also returns [].
+    if not matching_files:
+        return []
 
     results = []
     for absolute_file_path in matching_files:
