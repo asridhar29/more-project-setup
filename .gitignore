@@ -15,12 +15,16 @@ build/
 dist/
 *.egg-info/
 
-# Local development tests. Kept locally for running pytest and the
-# doctest/coverage checks described in the README, but not part of
-# what gets submitted to Gradescope -- the verified full-mark
-# reference submission for this assignment has no tests/ directory,
-# and this project's Gradescope docstring/doctest/tool-layout grading
-# appears to scan every .py file in the submitted repo, including
-# these. Excluding tests/ from the submitted repo keeps that grading
-# scoped to chat.py and tools/, matching the reference.
-tests/
+# Local development test SOURCE modules. Kept locally for running
+# pytest and the doctest/coverage checks described in the README, but
+# not part of what gets submitted to Gradescope -- the verified
+# full-mark reference submission for this assignment has no test
+# modules at all, and this project's Gradescope docstring/doctest/
+# tool-layout grading appears to scan every .py file in the submitted
+# repo, including these. "tests/*.py" matches only .py files directly
+# inside tests/ (test_calculate.py, test_docstrings.py, __init__.py,
+# and so on) -- it deliberately does NOT match anything under
+# tests/fixtures/, which MUST stay tracked: tools/cat.py and
+# tools/grep.py's own doctests read those fixture files directly, so
+# Gradescope's doctest run needs them present in the submitted repo.
+tests/*.py
