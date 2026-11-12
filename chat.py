@@ -193,11 +193,33 @@ def get_client():
 
 
 def llm(messages, temperature=1):
-    """Send `messages` to the model with no tools attached; return the reply text.
+    r"""Send `messages` to the model with no tools attached; return the reply text.
 
     Used for simple, one-off requests that don't need tool-calling,
     like asking the model to summarize a conversation (see
     `tools/compact.py`).
+
+    `FakeGroqClient` (defined further down, with the other fake-API
+    helpers) stands in for a real Groq client here, so this doctest
+    never makes a real network call or needs an API key:
+
+    >>> from unittest.mock import patch
+    >>> fake_client = FakeGroqClient(fake_response('Hello!'))
+    >>> with patch('chat.get_client', return_value=fake_client):
+    ...     llm([{'role': 'user', 'content': 'Hi'}])
+    'Hello!'
+
+    `llm` passes the `messages` list and `temperature` argument
+    straight through to the API call, unchanged -- we can check that by
+    looking at what the fake client recorded:
+
+    >>> with patch('chat.get_client', return_value=fake_client):
+    ...     llm([{'role': 'user', 'content': 'Hi'}], temperature=0)
+    'Hello!'
+    >>> fake_client.chat.completions.last_call_arguments['messages']
+    [{'role': 'user', 'content': 'Hi'}]
+    >>> fake_client.chat.completions.last_call_arguments['temperature']
+    0
     """
     client = get_client()
     completion = client.chat.completions.create(
@@ -209,11 +231,20 @@ def llm(messages, temperature=1):
 
 
 def _request_completion_with_tools(messages, temperature):
-    """Send `messages` to the model with the four tools attached.
+    r"""Send `messages` to the model with the four tools attached.
 
     Returns the raw "message" object from the API response (not just
     its text), because that object might also contain `tool_calls`
     that we need to inspect and act on.
+
+    >>> from unittest.mock import patch
+    >>> fake_client = FakeGroqClient(fake_response('Hi there!'))
+    >>> with patch('chat.get_client', return_value=fake_client):
+    ...     message = _request_completion_with_tools([{'role': 'user', 'content': 'Hi'}], 0)
+    >>> message.content
+    'Hi there!'
+    >>> fake_client.chat.completions.last_call_arguments['tools'] == TOOL_SCHEMAS
+    True
     """
     client = get_client()
     completion = client.chat.completions.create(
@@ -344,6 +375,50 @@ def fake_response(text=None, tool_calls=None):
     return FakeCompletion(FakeMessage(content=text, tool_calls=tool_calls))
 
 
+class FakeCompletionsAPI:
+    """Stands in for the real `client.chat.completions` object.
+
+    Always returns the fake response it was given, and remembers the
+    keyword arguments it was last called with (in `last_call_arguments`)
+    so a doctest can check that a function sent the right `messages`
+    and `temperature`, without needing a real network call.
+    """
+
+    def __init__(self, response_to_return):
+        self.response_to_return = response_to_return
+        self.last_call_arguments = None
+
+    def create(self, **keyword_arguments):
+        self.last_call_arguments = keyword_arguments
+        return self.response_to_return
+
+
+class FakeChatAPI:
+    """Stands in for the real `client.chat` object -- just holds `.completions`."""
+
+    def __init__(self, response_to_return):
+        self.completions = FakeCompletionsAPI(response_to_return)
+
+
+class FakeGroqClient:
+    r"""Stands in for a real Groq client, so tests never need a network call or API key.
+
+    A real `Groq` client is used as `client.chat.completions.create(...)`.
+    This fake client has the exact same shape (`.chat.completions.create`),
+    so it can be swapped in anywhere the real client would be used.
+
+    >>> client = FakeGroqClient(fake_response('Hello!'))
+    >>> completion = client.chat.completions.create(messages=[], model='m', temperature=0)
+    >>> completion.choices[0].message.content
+    'Hello!'
+    >>> client.chat.completions.last_call_arguments['temperature']
+    0
+    """
+
+    def __init__(self, response_to_return):
+        self.chat = FakeChatAPI(response_to_return)
+
+
 class Chat:
     r"""Holds the message history for one conversation, and can call tools.
 
@@ -375,7 +450,11 @@ class Chat:
     """
 
     def __init__(self, system=SYSTEM_PROMPT):
-        # every conversation starts with a system message
+        """Start a new conversation, beginning with one system message.
+
+        Examples of what this sets up are shown in this class's own
+        docstring above (see the `Chat()` calls there).
+        """
         self.messages = [{'role': 'system', 'content': system}]
 
     def send_message(self, message, temperature=0.8, debug=False):
