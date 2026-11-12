@@ -4,7 +4,10 @@ from tools.grep import grep
 
 
 def test_finds_matching_lines_with_filename_and_line_number():
-    """Check that a match is returned in the 'path:line_number:line_text' format."""
+    """Check that a match is returned in the 'path:line_number:line_text' format.
+
+    >>> test_finds_matching_lines_with_filename_and_line_number()
+    """
     results = grep("def calculate", "tools/calculate.py")
     assert isinstance(results, list)
     assert len(results) == 1
@@ -16,19 +19,28 @@ def test_finds_matching_lines_with_filename_and_line_number():
 
 
 def test_no_matches_returns_empty_list():
-    """Check that a valid pattern with real files but no text match returns an empty list."""
+    """Check that a valid pattern with real files but no text match returns an empty list.
+
+    >>> test_no_matches_returns_empty_list()
+    """
     result = grep("zzz_text_that_will_never_appear_zzz", "tools/calculate.py")
     assert result == []
 
 
 def test_invalid_regex_gives_clear_error():
-    """Check that a syntactically invalid regular expression returns a clear error."""
+    """Check that a syntactically invalid regular expression returns a clear error.
+
+    >>> test_invalid_regex_gives_clear_error()
+    """
     result = grep("(unclosed", "tools/*.py")
     assert result == "Error: invalid regular expression"
 
 
 def test_pattern_matching_zero_files_returns_empty_list():
-    """Check that a valid glob pattern matching zero files returns [], not an error."""
+    """Check that a valid glob pattern matching zero files returns [], not an error.
+
+    >>> test_pattern_matching_zero_files_returns_empty_list()
+    """
     # A valid, safe glob pattern that simply matches nothing (the
     # folder does not exist at all) is not an error -- it just means
     # there was nothing to search.
@@ -37,7 +49,10 @@ def test_pattern_matching_zero_files_returns_empty_list():
 
 
 def test_pattern_matching_zero_files_returns_empty_list_even_when_mocked():
-    """Check that grep returns [] whenever glob.glob() itself returns no matches, regardless of disk state."""
+    """Check that grep returns [] whenever glob.glob() itself returns no matches, regardless of disk state.
+
+    >>> test_pattern_matching_zero_files_returns_empty_list_even_when_mocked()
+    """
     # Same guarantee as above, but independent of anything on disk:
     # if glob.glob() itself returns an empty list for any reason, grep
     # must return [] too, never an error string.
@@ -49,13 +64,19 @@ def test_pattern_matching_zero_files_returns_empty_list_even_when_mocked():
 
 
 def test_glob_pattern_that_escapes_project_is_rejected():
-    """Check that a glob pattern trying to escape the project with ".." is rejected."""
+    """Check that a glob pattern trying to escape the project with ".." is rejected.
+
+    >>> test_glob_pattern_that_escapes_project_is_rejected()
+    """
     result = grep("anything", "../*.py")
     assert result == "Error: that path or pattern is not allowed"
 
 
 def test_skips_directories_matched_by_the_pattern():
-    """Check that directories matched by a glob pattern are skipped, not opened as text files."""
+    """Check that directories matched by a glob pattern are skipped, not opened as text files.
+
+    >>> test_skips_directories_matched_by_the_pattern()
+    """
     # "test_projects/*" matches the submodule folders themselves
     # (directories), not just files. grep must skip those directories
     # instead of trying to open them as if they were text files.
@@ -64,7 +85,10 @@ def test_skips_directories_matched_by_the_pattern():
 
 
 def test_valid_pattern_matching_only_directories_returns_empty_list():
-    """Check the specific case of a pattern matching only directories, confirmed to return []."""
+    """Check the specific case of a pattern matching only directories, confirmed to return [].
+
+    >>> test_valid_pattern_matching_only_directories_returns_empty_list()
+    """
     # Regression test for the exact call that previous reports were
     # ambiguous about: a valid glob pattern ("test_projects/*") that
     # matches only directories, not files, must return an empty list,
@@ -73,7 +97,10 @@ def test_valid_pattern_matching_only_directories_returns_empty_list():
 
 
 def test_does_not_crash_on_undecodable_file():
-    """Check that an undecodable binary file is skipped while a real text match is still found."""
+    """Check that an undecodable binary file is skipped while a real text match is still found.
+
+    >>> test_does_not_crash_on_undecodable_file()
+    """
     # The pattern below matches both a normal text file and an
     # undecodable binary file in the fixtures folder. grep should skip
     # the binary one without crashing and still find the text match.
@@ -88,7 +115,10 @@ def test_does_not_crash_on_undecodable_file():
 
 
 def test_does_not_crash_on_file_with_no_bom_and_invalid_utf8():
-    """Check that a file with no BOM and invalid UTF-8 is skipped, never force-decoded as UTF-16."""
+    """Check that a file with no BOM and invalid UTF-8 is skipped, never force-decoded as UTF-16.
+
+    >>> test_does_not_crash_on_file_with_no_bom_and_invalid_utf8()
+    """
     # This file's bytes are invalid UTF-8 and do NOT start with any
     # byte-order mark at all. Trying to blindly decode it as UTF-16
     # (without first checking for a BOM) would raise a confusing
@@ -99,21 +129,30 @@ def test_does_not_crash_on_file_with_no_bom_and_invalid_utf8():
 
 
 def test_reads_utf8_file_with_bom():
-    """Check that a UTF-8 file with a byte-order mark is read and matched correctly."""
+    """Check that a UTF-8 file with a byte-order mark is read and matched correctly.
+
+    >>> test_reads_utf8_file_with_bom()
+    """
     results = grep("byte-order mark", "tests/fixtures/utf8_bom_sample.txt")
     assert len(results) == 1
     assert results[0] == "tests/fixtures/utf8_bom_sample.txt:1:This file has a UTF-8 byte-order mark."
 
 
 def test_reads_utf16_big_endian_file_with_bom():
-    """Check that a UTF-16 big-endian file (not just little-endian) is read correctly."""
+    """Check that a UTF-16 big-endian file (not just little-endian) is read correctly.
+
+    >>> test_reads_utf16_big_endian_file_with_bom()
+    """
     results = grep("big-endian", "tests/fixtures/utf16_be_sample.txt")
     assert len(results) == 1
     assert results[0] == "tests/fixtures/utf16_be_sample.txt:1:Hello from UTF-16 big-endian!"
 
 
 def test_reads_legacy_cp1252_file_with_no_bom():
-    """Check that a legitimate cp1252-encoded text file is read, not skipped for being non-UTF-8."""
+    """Check that a legitimate cp1252-encoded text file is read, not skipped for being non-UTF-8.
+
+    >>> test_reads_legacy_cp1252_file_with_no_bom()
+    """
     # This file is not valid UTF-8 and has no BOM at all, but it IS a
     # real, legitimate text file (saved in an older Windows encoding).
     # grep must still read it, not silently skip it just because it
@@ -124,7 +163,10 @@ def test_reads_legacy_cp1252_file_with_no_bom():
 
 
 def test_skips_genuinely_binary_files_even_without_a_null_byte_shortcut():
-    """Check that a real binary file (a PNG) is skipped because it contains a null byte."""
+    """Check that a real binary file (a PNG) is skipped because it contains a null byte.
+
+    >>> test_skips_genuinely_binary_files_even_without_a_null_byte_shortcut()
+    """
     # pixel.png has no BOM and is not valid UTF-8, but it DOES contain
     # a null byte, which is what correctly marks it as binary (as
     # opposed to a legacy-encoded text file like cp1252_sample.txt,
@@ -134,7 +176,10 @@ def test_skips_genuinely_binary_files_even_without_a_null_byte_shortcut():
 
 
 def test_matches_across_multiple_files():
-    """Check that a glob pattern matching several files returns combined, correctly tagged results."""
+    """Check that a glob pattern matching several files returns combined, correctly tagged results.
+
+    >>> test_matches_across_multiple_files()
+    """
     results = grep("is_path_safe", "tools/*.py")
     files_matched = set()
     for line in results:

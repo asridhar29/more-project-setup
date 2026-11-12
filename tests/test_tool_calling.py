@@ -13,7 +13,10 @@ from chat import Chat, FakeMessage, FakeToolCall, run_tool
 
 
 def test_multiple_tool_calls_in_one_turn_are_all_executed():
-    """Check that when the model requests two tools at once, both run and both results are saved."""
+    """Check that when the model requests two tools at once, both run and both results are saved.
+
+    >>> test_multiple_tool_calls_in_one_turn_are_all_executed()
+    """
     call_a = FakeToolCall("call_a", "calculate", '{"expression": "2 + 2"}')
     call_b = FakeToolCall("call_b", "calculate", '{"expression": "3 + 3"}')
 
@@ -39,13 +42,19 @@ def test_multiple_tool_calls_in_one_turn_are_all_executed():
 
 
 def test_unknown_tool_name_does_not_crash():
-    """Check that run_tool() with an unregistered tool name returns an error, not a crash."""
+    """Check that run_tool() with an unregistered tool name returns an error, not a crash.
+
+    >>> test_unknown_tool_name_does_not_crash()
+    """
     result = run_tool("this_tool_does_not_exist", "{}")
     assert result == "Error: unknown tool: this_tool_does_not_exist"
 
 
 def test_unknown_tool_requested_by_model_is_handled_gracefully():
-    """Check that the model requesting a nonexistent tool is handled within the normal conversation flow."""
+    """Check that the model requesting a nonexistent tool is handled within the normal conversation flow.
+
+    >>> test_unknown_tool_requested_by_model_is_handled_gracefully()
+    """
     call = FakeToolCall("call_1", "delete_everything", "{}")
     first_reply = FakeMessage(tool_calls=[call])
     second_reply = FakeMessage(content="I cannot do that.")
@@ -61,13 +70,19 @@ def test_unknown_tool_requested_by_model_is_handled_gracefully():
 
 
 def test_invalid_json_arguments_are_handled_gracefully():
-    """Check that malformed JSON tool arguments return a clear error instead of raising."""
+    """Check that malformed JSON tool arguments return a clear error instead of raising.
+
+    >>> test_invalid_json_arguments_are_handled_gracefully()
+    """
     result = run_tool("calculate", "{not valid json!!")
     assert result == "Error: could not understand the tool arguments (invalid JSON)"
 
 
 def test_api_failure_during_conversation_is_not_swallowed_silently():
-    """Check that an exception from the API call propagates out of send_message() instead of being hidden."""
+    """Check that an exception from the API call propagates out of send_message() instead of being hidden.
+
+    >>> test_api_failure_during_conversation_is_not_swallowed_silently()
+    """
     # send_message itself does not catch exceptions -- that is done by
     # the callers (repl() and run_one_shot()), so the conversation
     # history is not left in a confusing half-updated state.
@@ -78,7 +93,33 @@ def test_api_failure_during_conversation_is_not_swallowed_silently():
 
 
 def test_repl_shows_friendly_message_on_api_failure(capsys, monkeypatch):
-    """Check that the REPL prints a friendly error message instead of crashing on an API failure."""
+    r"""Check that the REPL prints a friendly error message instead of crashing on an API failure.
+
+    This test itself needs pytest's `capsys` and `monkeypatch` fixtures,
+    which a plain doctest has no way to supply. So instead of calling
+    this test function directly, this example demonstrates the exact
+    same underlying production behavior -- `repl()` surviving an API
+    failure and printing a friendly message -- using only
+    `unittest.mock.patch` and `io.StringIO` to capture output, neither
+    of which needs a pytest fixture:
+
+    >>> import io, contextlib
+    >>> from unittest.mock import patch
+    >>> import chat as chat_module
+    >>> inputs = iter(["Hello", EOFError()])
+    >>> def _scripted_input(prompt):
+    ...     value = next(inputs)
+    ...     if isinstance(value, Exception):
+    ...         raise value
+    ...     return value
+    >>> captured_output = io.StringIO()
+    >>> with (patch("builtins.input", _scripted_input),
+    ...       patch("chat._request_completion_with_tools", side_effect=Exception("network down")),
+    ...       contextlib.redirect_stdout(captured_output)):
+    ...     chat_module.repl(temperature=0)
+    >>> "Error talking to the AI model" in captured_output.getvalue()
+    True
+    """
     import chat as chat_module
 
     inputs = iter(["Hello", EOFError()])

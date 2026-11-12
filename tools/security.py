@@ -38,6 +38,10 @@ def get_project_directory():
     folder the terminal was in when `chat` was launched. We look this
     up fresh every time, instead of caching it once, so it always
     reflects where the chatbot was actually started from.
+
+    >>> import os
+    >>> get_project_directory() == os.getcwd()
+    True
     """
     return os.getcwd()
 

@@ -9,7 +9,10 @@ from tools.compact import compact
 
 
 def test_compact_replaces_history_with_one_known_summary():
-    """Check that compact() replaces the whole conversation with exactly one summary message."""
+    """Check that compact() replaces the whole conversation with exactly one summary message.
+
+    >>> test_compact_replaces_history_with_one_known_summary()
+    """
     chat = Chat()
     chat.messages.append({"role": "user", "content": "My favorite color is blue."})
     chat.messages.append({"role": "assistant", "content": "Got it, blue!"})
@@ -24,7 +27,10 @@ def test_compact_replaces_history_with_one_known_summary():
 
 
 def test_failed_compaction_leaves_original_history_unchanged():
-    """Check that a failed summarization request leaves the original conversation untouched."""
+    """Check that a failed summarization request leaves the original conversation untouched.
+
+    >>> test_failed_compaction_leaves_original_history_unchanged()
+    """
     chat = Chat()
     chat.messages.append({"role": "user", "content": "Hello"})
     chat.messages.append({"role": "assistant", "content": "Hi!"})

@@ -17,3 +17,13 @@ packages = ["tools"]
 
 [project.scripts]
 chat = "chat:main"
+
+[tool.pytest.ini_options]
+# Without this, a bare "pytest" or "pytest --doctest-modules" run from
+# the project root recurses into every folder it finds -- including
+# test_projects/, which holds OTHER people's full projects as git
+# submodules (their own dependencies, their own doctests, none of it
+# ours to test). This explicitly limits test collection to exactly
+# this project's own code: chat.py, the tools/ package, and the
+# tests/ folder.
+testpaths = ["chat.py", "tools", "tests"]
