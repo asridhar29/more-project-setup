@@ -300,7 +300,19 @@ def run_tool(tool_name, raw_arguments):
 # shape as a real Groq response, so the tests don't need a real API
 # key or an internet connection.
 class FakeFunctionCall:
-    """Stands in for the `.function` part of a real tool-call object."""
+    r"""Stands in for the `.function` part of a real tool-call object.
+
+    A real tool call's `.function` has a `.name` (which tool) and
+    `.arguments` (a JSON-formatted string of that tool's inputs).
+
+    >>> function_call = FakeFunctionCall('calculate', '{"expression": "2 + 2"}')
+    >>> function_call.name
+    'calculate'
+    >>> function_call.arguments
+    '{"expression": "2 + 2"}'
+    >>> function_call.model_dump()
+    {'name': 'calculate', 'arguments': '{"expression": "2 + 2"}'}
+    """
 
     def __init__(self, name, arguments):
         self.name = name
@@ -311,7 +323,16 @@ class FakeFunctionCall:
 
 
 class FakeToolCall:
-    """Stands in for one tool call inside a fake assistant message."""
+    r"""Stands in for one tool call inside a fake assistant message.
+
+    >>> call = FakeToolCall('call_1', 'calculate', '{"expression": "2 + 2"}')
+    >>> call.id
+    'call_1'
+    >>> call.function.name
+    'calculate'
+    >>> call.model_dump()
+    {'id': 'call_1', 'type': 'function', 'function': {'name': 'calculate', 'arguments': '{"expression": "2 + 2"}'}}
+    """
 
     def __init__(self, call_id, name, arguments):
         self.id = call_id
@@ -327,13 +348,32 @@ class FakeToolCall:
 
 
 class FakeMessage:
-    """Stands in for a real Groq response message.
+    r"""Stands in for a real Groq response message.
 
     Real response messages are Pydantic objects with a `.model_dump()`
     method that turns them into a plain dictionary -- that's what
     `Chat.send_message` calls to save the message into conversation
     history. This fake class supports the same method, so tests can
     use it as a drop-in replacement for the real thing.
+
+    >>> message = FakeMessage(content='Hi there!')
+    >>> message.model_dump()
+    {'role': 'assistant', 'content': 'Hi there!', 'tool_calls': None}
+
+    `exclude_none=True` (what `Chat.send_message` actually uses) leaves
+    out fields that are `None`, such as `tool_calls` on a plain-text
+    reply:
+
+    >>> message.model_dump(exclude_none=True)
+    {'role': 'assistant', 'content': 'Hi there!'}
+
+    A message with tool calls dumps each one the same way `FakeToolCall`
+    does:
+
+    >>> call = FakeToolCall('call_1', 'calculate', '{"expression": "2 + 2"}')
+    >>> tool_message = FakeMessage(tool_calls=[call])
+    >>> tool_message.model_dump(exclude_none=True)
+    {'role': 'assistant', 'tool_calls': [{'id': 'call_1', 'type': 'function', 'function': {'name': 'calculate', 'arguments': '{"expression": "2 + 2"}'}}]}
     """
 
     def __init__(self, content=None, tool_calls=None):
@@ -361,27 +401,59 @@ class FakeMessage:
 
 
 class FakeChoice:
+    r"""Stands in for one entry in a real completion's `.choices` list.
+
+    A real response can technically offer several candidate replies in
+    `.choices`, but this project always uses just the first one, so
+    this fake only ever holds exactly one `.message`.
+
+    >>> choice = FakeChoice(FakeMessage(content='Hi there!'))
+    >>> choice.message.content
+    'Hi there!'
+    """
+
     def __init__(self, message):
         self.message = message
 
 
 class FakeCompletion:
+    r"""Stands in for a whole real Groq completion response.
+
+    >>> completion = FakeCompletion(FakeMessage(content='Hi there!'))
+    >>> completion.choices[0].message.content
+    'Hi there!'
+    """
+
     def __init__(self, message):
         self.choices = [FakeChoice(message)]
 
 
 def fake_response(text=None, tool_calls=None):
-    """Build a fake completion object shaped like a real Groq response."""
+    r"""Build a fake completion object shaped like a real Groq response.
+
+    >>> completion = fake_response('Hi there!')
+    >>> completion.choices[0].message.content
+    'Hi there!'
+    >>> completion.choices[0].message.tool_calls is None
+    True
+    """
     return FakeCompletion(FakeMessage(content=text, tool_calls=tool_calls))
 
 
 class FakeCompletionsAPI:
-    """Stands in for the real `client.chat.completions` object.
+    r"""Stands in for the real `client.chat.completions` object.
 
     Always returns the fake response it was given, and remembers the
     keyword arguments it was last called with (in `last_call_arguments`)
     so a doctest can check that a function sent the right `messages`
     and `temperature`, without needing a real network call.
+
+    >>> completions = FakeCompletionsAPI(fake_response('Hi there!'))
+    >>> result = completions.create(messages=[], model='m', temperature=0)
+    >>> result.choices[0].message.content
+    'Hi there!'
+    >>> completions.last_call_arguments['temperature']
+    0
     """
 
     def __init__(self, response_to_return):
@@ -394,7 +466,12 @@ class FakeCompletionsAPI:
 
 
 class FakeChatAPI:
-    """Stands in for the real `client.chat` object -- just holds `.completions`."""
+    r"""Stands in for the real `client.chat` object -- just holds `.completions`.
+
+    >>> chat_api = FakeChatAPI(fake_response('Hi there!'))
+    >>> chat_api.completions.create(messages=[], model='m', temperature=0).choices[0].message.content
+    'Hi there!'
+    """
 
     def __init__(self, response_to_return):
         self.completions = FakeCompletionsAPI(response_to_return)

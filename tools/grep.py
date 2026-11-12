@@ -50,14 +50,14 @@ def grep(regex, path):
 
     Returns a list of strings, each formatted as
     ``"filename:line_number:line_text"``, one per matching line. If
-    nothing matches, returns the message ``"No matches found"`` instead
-    of an empty list, so the result is always easy to read.
+    nothing matches, returns an empty list -- so, just like the real
+    Unix `grep` command, no matches means no output at all.
 
     >>> matches = grep("def calculate", "tools/calculate.py")
     >>> matches[0].startswith("tools/calculate.py:")
     True
     >>> grep("xyz_no_such_text_anywhere_in_this_file_abc", "tools/calculate.py")
-    'No matches found'
+    []
     >>> grep("(", "tools/*.py")
     'Error: invalid regular expression'
     >>> grep("def ", "../*.py")
@@ -123,8 +123,5 @@ def grep(regex, path):
                 clean_line = line.rstrip("\n")
                 formatted = file_path + ":" + str(line_number) + ":" + clean_line
                 results.append(formatted)
-
-    if len(results) == 0:
-        return "No matches found"
 
     return results

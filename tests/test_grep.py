@@ -14,9 +14,9 @@ def test_finds_matching_lines_with_filename_and_line_number():
     assert pieces[1].isdigit()
 
 
-def test_no_matches_returns_clear_message():
+def test_no_matches_returns_empty_list():
     result = grep("zzz_text_that_will_never_appear_zzz", "tools/calculate.py")
-    assert result == "No matches found"
+    assert result == []
 
 
 def test_invalid_regex_gives_clear_error():
@@ -39,7 +39,7 @@ def test_skips_directories_matched_by_the_pattern():
     # (directories), not just files. grep must skip those directories
     # instead of trying to open them as if they were text files.
     result = grep("zzz_text_that_will_never_appear_zzz", "test_projects/*")
-    assert result == "No matches found"
+    assert result == []
 
 
 def test_does_not_crash_on_undecodable_file():
