@@ -315,12 +315,23 @@ class FakeFunctionCall:
     """
 
     def __init__(self, name, arguments):
-        """Remember which tool was requested, and its raw JSON arguments."""
+        r"""Remember which tool was requested, and its raw JSON arguments.
+
+        >>> function_call = FakeFunctionCall("calculate", '{"expression": "2 + 2"}')
+        >>> function_call.name
+        'calculate'
+        >>> function_call.arguments
+        '{"expression": "2 + 2"}'
+        """
         self.name = name
         self.arguments = arguments
 
     def model_dump(self):
-        """Return this fake function call as a plain dict, like the real SDK's model_dump()."""
+        r"""Return this fake function call as a plain dict, like the real SDK's model_dump().
+
+        >>> FakeFunctionCall("calculate", '{"expression": "2 + 2"}').model_dump()
+        {'name': 'calculate', 'arguments': '{"expression": "2 + 2"}'}
+        """
         return {"name": self.name, "arguments": self.arguments}
 
 
@@ -337,13 +348,26 @@ class FakeToolCall:
     """
 
     def __init__(self, call_id, name, arguments):
-        """Build one fake tool-call request, with its own id and function details."""
+        r"""Build one fake tool-call request, with its own id and function details.
+
+        >>> call = FakeToolCall("call_1", "calculate", '{"expression": "2 + 2"}')
+        >>> call.id
+        'call_1'
+        >>> call.type
+        'function'
+        >>> call.function.name
+        'calculate'
+        """
         self.id = call_id
         self.type = "function"
         self.function = FakeFunctionCall(name, arguments)
 
     def model_dump(self):
-        """Return this fake tool call as a plain dict, nesting the function's own model_dump()."""
+        r"""Return this fake tool call as a plain dict, nesting the function's own model_dump().
+
+        >>> FakeToolCall("call_1", "calculate", '{"expression": "2 + 2"}').model_dump()
+        {'id': 'call_1', 'type': 'function', 'function': {'name': 'calculate', 'arguments': '{"expression": "2 + 2"}'}}
+        """
         return {
             "id": self.id,
             "type": self.type,
@@ -381,13 +405,28 @@ class FakeMessage:
     """
 
     def __init__(self, content=None, tool_calls=None):
-        """Store the reply text and/or tool calls this fake message should carry."""
+        r"""Store the reply text and/or tool calls this fake message should carry.
+
+        >>> message = FakeMessage(content="Hi!")
+        >>> message.role
+        'assistant'
+        >>> message.content
+        'Hi!'
+        >>> message.tool_calls is None
+        True
+        """
         self.role = "assistant"
         self.content = content
         self.tool_calls = tool_calls
 
     def model_dump(self, exclude_none=False):
-        """Return this fake message as a plain dict, like the real SDK's model_dump()."""
+        r"""Return this fake message as a plain dict, like the real SDK's model_dump().
+
+        >>> FakeMessage(content="Hi!").model_dump()
+        {'role': 'assistant', 'content': 'Hi!', 'tool_calls': None}
+        >>> FakeMessage(content="Hi!").model_dump(exclude_none=True)
+        {'role': 'assistant', 'content': 'Hi!'}
+        """
         dumped_tool_calls = None
         if self.tool_calls is not None:
             dumped_tool_calls = []
@@ -419,7 +458,12 @@ class FakeChoice:
     """
 
     def __init__(self, message):
-        """Hold the one fake message this fake choice wraps."""
+        """Hold the one fake message this fake choice wraps.
+
+        >>> choice = FakeChoice(FakeMessage(content="Hi!"))
+        >>> choice.message.content
+        'Hi!'
+        """
         self.message = message
 
 
@@ -432,7 +476,12 @@ class FakeCompletion:
     """
 
     def __init__(self, message):
-        """Wrap `message` in a one-item `.choices` list, like a real completion."""
+        """Wrap `message` in a one-item `.choices` list, like a real completion.
+
+        >>> completion = FakeCompletion(FakeMessage(content="Hi!"))
+        >>> completion.choices[0].message.content
+        'Hi!'
+        """
         self.choices = [FakeChoice(message)]
 
 
@@ -465,12 +514,27 @@ class FakeCompletionsAPI:
     """
 
     def __init__(self, response_to_return):
-        """Remember the fake response to hand back from every `create()` call."""
+        """Remember the fake response to hand back from every `create()` call.
+
+        >>> completions = FakeCompletionsAPI(fake_response("Hi!"))
+        >>> completions.response_to_return.choices[0].message.content
+        'Hi!'
+        >>> completions.last_call_arguments is None
+        True
+        """
         self.response_to_return = response_to_return
         self.last_call_arguments = None
 
     def create(self, **keyword_arguments):
-        """Record the keyword arguments it was called with, and return the fake response."""
+        """Record the keyword arguments it was called with, and return the fake response.
+
+        >>> completions = FakeCompletionsAPI(fake_response("Hi!"))
+        >>> result = completions.create(messages=[], model="m", temperature=0)
+        >>> result.choices[0].message.content
+        'Hi!'
+        >>> completions.last_call_arguments
+        {'messages': [], 'model': 'm', 'temperature': 0}
+        """
         self.last_call_arguments = keyword_arguments
         return self.response_to_return
 
@@ -484,7 +548,12 @@ class FakeChatAPI:
     """
 
     def __init__(self, response_to_return):
-        """Build a fake `.completions` object that returns `response_to_return`."""
+        """Build a fake `.completions` object that returns `response_to_return`.
+
+        >>> chat_api = FakeChatAPI(fake_response("Hi!"))
+        >>> chat_api.completions.create(messages=[], model="m", temperature=0).choices[0].message.content
+        'Hi!'
+        """
         self.completions = FakeCompletionsAPI(response_to_return)
 
 
@@ -504,7 +573,12 @@ class FakeGroqClient:
     """
 
     def __init__(self, response_to_return):
-        """Build a fake Groq client whose `.chat.completions.create()` returns `response_to_return`."""
+        """Build a fake Groq client whose `.chat.completions.create()` returns `response_to_return`.
+
+        >>> client = FakeGroqClient(fake_response("Hi!"))
+        >>> client.chat.completions.create(messages=[], model="m", temperature=0).choices[0].message.content
+        'Hi!'
+        """
         self.chat = FakeChatAPI(response_to_return)
 
 
@@ -573,7 +647,7 @@ class Chat:
         self.messages = [{'role': 'system', 'content': system}]
 
     def send_message(self, message, temperature=0.8, debug=False):
-        """Add a user message, get a reply (running tools if needed), return the final reply text.
+        r"""Add a user message, get a reply (running tools if needed), return the final reply text.
 
         This is the heart of the "tool-calling loop" described in the
         README. It repeats these steps until the model gives a plain
@@ -585,6 +659,13 @@ class Chat:
         4. Otherwise, run each requested tool, save every result to
            history (tagged with the matching `tool_call_id`), and go
            back to step 1 so the model can use those results.
+
+        >>> from unittest.mock import patch
+        >>> my_chat = Chat()
+        >>> with patch('chat._request_completion_with_tools') as fake_request:
+        ...     fake_request.return_value = FakeMessage(content='Hi there!')
+        ...     my_chat.send_message('Hello', temperature=0)
+        'Hi there!'
         """
         self.messages.append({'role': 'user', 'content': message})
 
