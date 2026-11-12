@@ -9,6 +9,7 @@ from chat import Chat, FakeMessage, FakeToolCall, run_one_shot, run_slash_comman
 
 
 def test_groq_client_is_not_created_until_needed(monkeypatch):
+    """Check that running slash commands never builds a Groq client, but get_client() does."""
     # Reset the lazy client so this test doesn't depend on what ran before it.
     monkeypatch.setattr(chat_module, "_client", None)
 
@@ -26,6 +27,7 @@ def test_groq_client_is_not_created_until_needed(monkeypatch):
 
 
 def test_slash_commands_work_with_no_api_key_configured(monkeypatch):
+    """Check that /ls, /cat, /calculate, and /grep all work with no GROQ_API_KEY set at all."""
     monkeypatch.delenv("GROQ_API_KEY", raising=False)
     monkeypatch.setattr(chat_module, "_client", None)
 
@@ -38,6 +40,7 @@ def test_slash_commands_work_with_no_api_key_configured(monkeypatch):
 
 
 def test_one_shot_mode_prints_final_reply(capsys):
+    """Check that run_one_shot() prints exactly the model's final reply text."""
     with patch("chat._request_completion_with_tools") as fake_request:
         fake_request.return_value = FakeMessage(content="Paris is the capital of France.")
         run_one_shot("What is the capital of France?")
@@ -47,6 +50,7 @@ def test_one_shot_mode_prints_final_reply(capsys):
 
 
 def test_debug_mode_prints_tool_name_and_arguments(capsys):
+    """Check that debug=True prints the tool's name and arguments when the model calls a tool."""
     call = FakeToolCall("call_1", "calculate", '{"expression": "6 * 7"}')
     first_reply = FakeMessage(tool_calls=[call])
     second_reply = FakeMessage(content="It's 42.")
@@ -62,6 +66,7 @@ def test_debug_mode_prints_tool_name_and_arguments(capsys):
 
 
 def test_debug_mode_off_by_default_prints_no_debug_lines(capsys):
+    """Check that no [DEBUG] lines are printed when debug is left at its default of False."""
     call = FakeToolCall("call_1", "calculate", '{"expression": "1 + 1"}')
     first_reply = FakeMessage(tool_calls=[call])
     second_reply = FakeMessage(content="It's 2.")

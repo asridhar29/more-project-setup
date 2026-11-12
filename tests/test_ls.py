@@ -4,6 +4,7 @@ from tools.ls import ls
 
 
 def test_lists_and_sorts_tools_folder():
+    """Check that listing the tools folder returns its known files, sorted alphabetically."""
     result = ls("tools")
     assert result == sorted(result)
     assert "calculate.py" in result
@@ -11,16 +12,19 @@ def test_lists_and_sorts_tools_folder():
 
 
 def test_default_path_lists_project_root():
+    """Check that calling ls() with no argument defaults to listing the project root."""
     result = ls()
     assert "chat.py" in result
     assert "tools" in result
 
 
 def test_nonexistent_directory_gives_clear_error():
+    """Check that listing a directory that doesn't exist returns a clear error."""
     result = ls("this_directory_does_not_exist")
     assert result.startswith("Error:")
 
 
 def test_unsafe_paths_are_rejected():
+    """Check that paths outside the project (via .. or an absolute path) are rejected."""
     assert ls("../").startswith("Error:")
     assert ls("/etc").startswith("Error:")

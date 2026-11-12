@@ -9,6 +9,7 @@ from tools.load_image import load_image
 
 
 def test_loading_valid_png_adds_one_image_message():
+    """Check that loading a real PNG appends one correctly-shaped image_url message."""
     chat = Chat()
     original_length = len(chat.messages)
 
@@ -27,6 +28,7 @@ def test_loading_valid_png_adds_one_image_message():
 
 
 def test_invalid_paths_do_not_modify_conversation_history():
+    """Check that unsafe, missing, or non-PNG paths return an error and leave history untouched."""
     chat = Chat()
     original_messages = list(chat.messages)
 
@@ -44,6 +46,7 @@ def test_invalid_paths_do_not_modify_conversation_history():
 
 
 def test_unreadable_file_does_not_modify_conversation_history():
+    """Check that a file that fails to open (mocked OSError) leaves conversation history untouched."""
     chat = Chat()
     original_messages = list(chat.messages)
 
