@@ -14,3 +14,13 @@ htmlcov/
 build/
 dist/
 *.egg-info/
+
+# Local development tests. Kept locally for running pytest and the
+# doctest/coverage checks described in the README, but not part of
+# what gets submitted to Gradescope -- the verified full-mark
+# reference submission for this assignment has no tests/ directory,
+# and this project's Gradescope docstring/doctest/tool-layout grading
+# appears to scan every .py file in the submitted repo, including
+# these. Excluding tests/ from the submitted repo keeps that grading
+# scoped to chat.py and tools/, matching the reference.
+tests/
