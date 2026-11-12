@@ -29,10 +29,27 @@ from tools.cat import ENCODINGS_TO_TRY
 
 
 def _read_lines_of_file(path):
-    """Return the lines of a text file, trying each known encoding.
+    r"""Return the lines of a text file, trying each known encoding.
 
     Returns None if the file could not be read with any encoding, so
     the caller can skip it instead of crashing.
+
+    >>> lines = _read_lines_of_file("tools/__init__.py")
+    >>> "tools package" in "".join(lines)
+    True
+    >>> _read_lines_of_file("tests/fixtures/undecodable.bin") is None
+    True
+
+    A different kind of failure (not a bad encoding, but something
+    like no permission to read the file at all) also returns `None`
+    instead of crashing. We fake that here with `unittest.mock`, since
+    we can't rely on actually having a permission-denied file to test
+    with:
+
+    >>> from unittest.mock import patch
+    >>> with patch('tools.grep.open', side_effect=OSError('permission denied')):
+    ...     _read_lines_of_file("tools/__init__.py") is None
+    True
     """
     for encoding in ENCODINGS_TO_TRY:
         try:
@@ -64,6 +81,32 @@ def grep(regex, path):
     'Error: that path or pattern is not allowed'
     >>> grep("def ", "no_such_file_or_folder/*.py")
     'Error: no files matched: no_such_file_or_folder/*.py'
+
+    A glob pattern can match files `grep` has to skip instead of
+    crashing: `tests/fixtures/pixel.png` and
+    `tests/fixtures/undecodable.bin` are not valid text in UTF-8 or
+    UTF-16, so they are silently skipped, leaving only the real match
+    from the one text file in that folder:
+
+    >>> grep("Hello", "tests/fixtures/*")
+    ['tests/fixtures/utf16_sample.txt:1:Hello from a UTF-16 file!']
+
+    A pattern can also match folders (not just files) -- `grep` skips
+    those too, since searching inside a folder doesn't make sense:
+
+    >>> grep("anything", "test_projects/*")
+    []
+
+    As a last resort, even a file an allowed glob pattern matched gets
+    one more individual safety check (`is_path_safe`) before it's
+    opened, in case a symbolic link made it secretly point outside the
+    project. That is hard to arrange for real in a doctest, so we fake
+    that check failing here with `unittest.mock`:
+
+    >>> from unittest.mock import patch
+    >>> with patch('tools.grep.is_path_safe', return_value=False):
+    ...     grep("def calculate", "tools/calculate.py")
+    []
     """
     # Validate the glob pattern's text before using it at all. This
     # blocks obviously unsafe patterns like "../*.py" immediately.

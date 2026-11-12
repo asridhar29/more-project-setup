@@ -743,6 +743,35 @@ def main():
     `sys.argv[0]` is always the program's own name, so we only look at
     `sys.argv[1:]` (everything after it). The flag `--debug` turns on
     debug mode; anything else is treated as a one-shot message.
+
+    These examples temporarily replace `sys.argv`, exactly like really
+    running `chat "..."` or `chat --debug "..."` from a terminal would
+    set it, and restore the original value afterward:
+
+    >>> from unittest.mock import patch
+    >>> original_argv = sys.argv
+
+    >>> sys.argv = ['chat', 'What is 2 + 2?']
+    >>> with patch('chat._request_completion_with_tools') as fake_request:
+    ...     fake_request.return_value = FakeMessage(content='4')
+    ...     main()
+    4
+
+    With `--debug`, `main()` turns on the same debug printing used
+    elsewhere whenever the model calls a tool:
+
+    >>> sys.argv = ['chat', '--debug', 'What is 2 + 2?']
+    >>> call = FakeToolCall('call_1', 'calculate', '{"expression": "2 + 2"}')
+    >>> replies = [FakeMessage(tool_calls=[call]), FakeMessage(content='4')]
+    >>> with patch('chat._request_completion_with_tools', side_effect=replies):
+    ...     main()
+    [DEBUG] Tool requested: calculate
+    [DEBUG] Arguments: {"expression": "2 + 2"}
+    [DEBUG] Tool finished: calculate
+    <BLANKLINE>
+    4
+
+    >>> sys.argv = original_argv
     """
     # Some terminals (this is common on Windows) default to an older
     # text encoding that cannot represent every character an AI model

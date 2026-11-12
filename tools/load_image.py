@@ -68,6 +68,19 @@ def load_image(chat, path):
     'image_url'
     >>> my_chat.messages[-1]['content'][0]['image_url']['url'].startswith('data:image/png;base64,')
     True
+
+    If the file can't actually be read (for example, no permission to
+    open it), history is left unchanged and a clear error comes back
+    instead of a crash. We fake that failure here with `unittest.mock`
+    so this doctest doesn't depend on real file permissions:
+
+    >>> from unittest.mock import patch
+    >>> another_chat = chat_module.Chat()
+    >>> with patch('tools.load_image.open', side_effect=OSError('permission denied')):
+    ...     load_image(another_chat, "tests/fixtures/pixel.png")
+    'Error: could not read file (permission denied)'
+    >>> len(another_chat.messages)
+    1
     """
     # Same shared security check every other file-reading tool uses.
     if not is_path_safe(path):

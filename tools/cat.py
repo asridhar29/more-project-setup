@@ -32,6 +32,13 @@ def cat(path):
     'Error: that path is not allowed'
     >>> cat("this_file_does_not_exist.txt")
     'Error: no such file: this_file_does_not_exist.txt'
+
+    `tests/fixtures/undecodable.bin` is a small file of raw bytes that
+    is not valid text in UTF-8 or UTF-16 -- neither encoding can read
+    it, so `cat` falls back to a clear error instead of crashing:
+
+    >>> cat("tests/fixtures/undecodable.bin")
+    'Error: could not read file (unsupported text encoding): tests/fixtures/undecodable.bin'
     """
     # Check the path is inside the project BEFORE we try to open
     # anything. This is the same rule every other tool uses.

@@ -73,6 +73,26 @@ def is_path_safe(path):
     False
     >>> is_path_safe("tools/../../outside.txt")
     False
+
+    A path with a drive letter (Windows-specific, like
+    ``C:/Windows/system32``) *is* caught by `os.path.isabs()`, unlike
+    the drive-relative paths above:
+
+    >>> is_path_safe("C:/Windows/system32")
+    False
+
+    The very last safety net is `os.path.commonpath()`, used to check
+    whether the resolved path is inside the project directory. On
+    Windows, that function raises `ValueError` if asked to compare two
+    paths on different drives -- which can't happen through this
+    function's normal checks above, so we fake that error here with
+    `unittest.mock` to prove the fallback still says "not safe" instead
+    of crashing:
+
+    >>> from unittest.mock import patch
+    >>> with patch('os.path.commonpath', side_effect=ValueError('no common path')):
+    ...     is_path_safe("chat.py")
+    False
     """
     # An absolute path already points to one exact place on the machine,
     # ignoring the project folder entirely, so it is never safe.
@@ -140,6 +160,8 @@ def safe_glob_pattern_is_allowed(pattern):
     >>> safe_glob_pattern_is_allowed("../*.py")
     False
     >>> safe_glob_pattern_is_allowed("/*.py")
+    False
+    >>> safe_glob_pattern_is_allowed("C:/Windows/*.py")
     False
     """
     if os.path.isabs(pattern):
