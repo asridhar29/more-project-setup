@@ -4,7 +4,15 @@ from tools.calculate import calculate
 
 
 def test_valid_expressions():
-    """Check that basic arithmetic (+, *, /, **) and parentheses return the correct numeric result."""
+    """Check that basic arithmetic (+, *, /, **) and parentheses return the correct numeric result.
+
+    This test takes no arguments and only uses plain `assert` statements,
+    so calling it directly runs every check below and prints nothing at
+    all if they all pass -- exactly what a doctest with no expected
+    output after it checks for:
+
+    >>> test_valid_expressions()
+    """
     assert calculate("5 + 3") == 8
     assert calculate("10 * 4") == 40
     assert calculate("(20 + 5) / 5") == 5.0
