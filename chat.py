@@ -387,6 +387,7 @@ class FakeMessage:
         self.tool_calls = tool_calls
 
     def model_dump(self, exclude_none=False):
+        """Return this fake message as a plain dict, like the real SDK's model_dump()."""
         dumped_tool_calls = None
         if self.tool_calls is not None:
             dumped_tool_calls = []
@@ -469,6 +470,7 @@ class FakeCompletionsAPI:
         self.last_call_arguments = None
 
     def create(self, **keyword_arguments):
+        """Record the keyword arguments it was called with, and return the fake response."""
         self.last_call_arguments = keyword_arguments
         return self.response_to_return
 
