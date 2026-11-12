@@ -1,1 +1,0 @@
-This file uses a legacy Windows encoding: it’s cp1252.
