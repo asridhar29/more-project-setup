@@ -1,0 +1,5 @@
+[features]
+cli_message = true
+debug = true
+compact = true
+images = true
