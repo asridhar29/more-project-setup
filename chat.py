@@ -320,6 +320,7 @@ class FakeFunctionCall:
         self.arguments = arguments
 
     def model_dump(self):
+        """Return this fake function call as a plain dict, like the real SDK's model_dump()."""
         return {"name": self.name, "arguments": self.arguments}
 
 

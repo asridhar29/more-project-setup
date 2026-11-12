@@ -194,9 +194,16 @@ def grep(regex, path):
     ['tests/fixtures/utf16_be_sample.txt:1:Hello from UTF-16 big-endian!', 'tests/fixtures/utf16_sample.txt:1:Hello from a UTF-16 file!']
 
     A pattern can also match folders (not just files) -- `grep` skips
-    those too, since searching inside a folder doesn't make sense:
+    those too, since searching inside a folder doesn't make sense.
+    `test_projects/*` demonstrates this with the three real submodule
+    folders, but that only proves the point if those submodules have
+    actually been checked out; `tests/*` proves the same thing using
+    `tests/fixtures`, an ordinary folder that is always present
+    regardless of submodule state:
 
     >>> grep("anything", "test_projects/*")
+    []
+    >>> grep("zzz_never_matches_anything_zzz", "tests/*")
     []
 
     As a last resort, even a file an allowed glob pattern matched gets
