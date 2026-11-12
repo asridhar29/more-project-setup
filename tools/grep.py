@@ -43,34 +43,66 @@ def _read_lines_of_file(path):
     r"""Return the lines of a text file, detecting its real encoding first.
 
     Reads the file's raw bytes, then decides how to decode them based
-    on what the first few bytes look like:
+    on what those bytes actually look like:
 
     - A UTF-16 byte-order mark (BOM) means it is safe to decode as
-      UTF-16 -- Python uses the BOM to pick the correct byte order and
-      strips it out automatically.
+      UTF-16 -- Python uses the BOM to pick the correct byte order
+      (little-endian or big-endian) and strips it out automatically.
     - A UTF-8 BOM means it is safe to decode as UTF-8, using the
       "utf-8-sig" encoding, which also strips the BOM out.
-    - No BOM at all: assume plain UTF-8, by far the most common case
-      for text files that don't start with a BOM.
+    - A "\x00" (null) byte anywhere in the file is a strong sign this
+      is a binary file (like an image), not text -- real text files
+      essentially never contain one. We give up immediately in that
+      case, rather than risk turning binary bytes into fake-looking
+      matches.
+    - Otherwise, there's no BOM and no null byte, so we try plain
+      UTF-8 first (the most common case by far), and if that fails,
+      "cp1252" (a common older Windows text encoding) as a fallback --
+      so a legitimate text file saved in an older encoding is not
+      skipped just because it isn't UTF-8.
 
     Returns None, instead of raising an error, if the file's bytes
-    can't be decoded as text at all (for example, it's a binary file
-    like an image), or if the file can't be opened for some other
-    reason (missing, no permission, etc) -- so the caller can skip it
-    instead of crashing.
+    can't reasonably be decoded as text by any of the above, or if the
+    file can't be opened for some other reason (missing, no
+    permission, etc) -- so the caller can skip it instead of crashing.
 
     >>> lines = _read_lines_of_file("tools/__init__.py")
     >>> "tools package" in "".join(lines)
     True
+
+    `utf16_sample.txt` was written using Python's native byte order,
+    which on most computers today is little-endian; `utf16_be_sample.txt`
+    was built by hand with an explicit big-endian BOM instead, to prove
+    both byte orders are handled, not just one:
+
     >>> _read_lines_of_file("tests/fixtures/utf16_sample.txt")
     ['Hello from a UTF-16 file!']
+    >>> _read_lines_of_file("tests/fixtures/utf16_be_sample.txt")
+    ['Hello from UTF-16 big-endian!']
     >>> _read_lines_of_file("tests/fixtures/utf8_bom_sample.txt")
     ['This file has a UTF-8 byte-order mark.']
 
-    A file with no BOM at all, and bytes that are not valid UTF-8
-    either, is skipped cleanly -- `_read_lines_of_file` never even
+    A legitimate text file saved in an older Windows encoding (here,
+    "cp1252") is still read correctly, even though it is not valid
+    UTF-8 and has no BOM at all. The file contains a curly right-quote
+    character (code point 8217) that only exists in cp1252, not
+    plain ASCII -- checking its code point number instead of writing
+    the character directly here avoids any confusion about how a
+    terminal might display it:
+
+    >>> cp1252_lines = _read_lines_of_file("tests/fixtures/cp1252_sample.txt")
+    >>> cp1252_lines[0].startswith("This file uses a legacy Windows encoding: it")
+    True
+    >>> ord(cp1252_lines[0][44])
+    8217
+    >>> cp1252_lines[0].endswith("s cp1252.")
+    True
+
+    A genuinely binary file (one containing a null byte, like a PNG
+    image) is skipped cleanly -- `_read_lines_of_file` never even
     attempts to decode it as UTF-16, since there is no BOM to justify
-    that:
+    that, and never risks decoding it as cp1252 "text" either, since
+    the null byte already marks it as binary:
 
     >>> _read_lines_of_file("tests/fixtures/no_bom_binary.bin") is None
     True
@@ -98,18 +130,22 @@ def _read_lines_of_file(path):
         return None
 
     if raw_bytes.startswith(UTF16_BOMS):
-        encoding = "utf-16"
+        candidate_encodings = ["utf-16"]
     elif raw_bytes.startswith(codecs.BOM_UTF8):
-        encoding = "utf-8-sig"
-    else:
-        encoding = "utf-8"
-
-    try:
-        text = raw_bytes.decode(encoding)
-    except UnicodeDecodeError:
+        candidate_encodings = ["utf-8-sig"]
+    elif b"\x00" in raw_bytes:
         return None
+    else:
+        candidate_encodings = ["utf-8", "cp1252"]
 
-    return text.splitlines(keepends=True)
+    for encoding in candidate_encodings:
+        try:
+            text = raw_bytes.decode(encoding)
+            return text.splitlines(keepends=True)
+        except UnicodeDecodeError:
+            continue
+
+    return None
 
 
 def grep(regex, path):
@@ -147,11 +183,11 @@ def grep(regex, path):
     crashing: `tests/fixtures/pixel.png`, `tests/fixtures/undecodable.bin`,
     and `tests/fixtures/no_bom_binary.bin` are none of them valid text
     (and none of them start with a byte-order mark either), so they
-    are silently skipped, leaving only the real match from the one
-    genuine text file in that folder:
+    are silently skipped, leaving only the real matches from the
+    genuine text files in that folder:
 
     >>> grep("Hello", "tests/fixtures/*")
-    ['tests/fixtures/utf16_sample.txt:1:Hello from a UTF-16 file!']
+    ['tests/fixtures/utf16_be_sample.txt:1:Hello from UTF-16 big-endian!', 'tests/fixtures/utf16_sample.txt:1:Hello from a UTF-16 file!']
 
     A pattern can also match folders (not just files) -- `grep` skips
     those too, since searching inside a folder doesn't make sense:

@@ -42,6 +42,14 @@ def test_skips_directories_matched_by_the_pattern():
     assert result == []
 
 
+def test_valid_pattern_matching_only_directories_returns_empty_list():
+    # Regression test for the exact call that previous reports were
+    # ambiguous about: a valid glob pattern ("test_projects/*") that
+    # matches only directories, not files, must return an empty list,
+    # not an error string.
+    assert grep("anything", "test_projects/*") == []
+
+
 def test_does_not_crash_on_undecodable_file():
     # The pattern below matches both a normal text file and an
     # undecodable binary file in the fixtures folder. grep should skip
@@ -70,6 +78,31 @@ def test_reads_utf8_file_with_bom():
     results = grep("byte-order mark", "tests/fixtures/utf8_bom_sample.txt")
     assert len(results) == 1
     assert results[0] == "tests/fixtures/utf8_bom_sample.txt:1:This file has a UTF-8 byte-order mark."
+
+
+def test_reads_utf16_big_endian_file_with_bom():
+    results = grep("big-endian", "tests/fixtures/utf16_be_sample.txt")
+    assert len(results) == 1
+    assert results[0] == "tests/fixtures/utf16_be_sample.txt:1:Hello from UTF-16 big-endian!"
+
+
+def test_reads_legacy_cp1252_file_with_no_bom():
+    # This file is not valid UTF-8 and has no BOM at all, but it IS a
+    # real, legitimate text file (saved in an older Windows encoding).
+    # grep must still read it, not silently skip it just because it
+    # isn't UTF-8.
+    results = grep("legacy Windows encoding", "tests/fixtures/cp1252_sample.txt")
+    assert len(results) == 1
+    assert results[0].startswith("tests/fixtures/cp1252_sample.txt:1:")
+
+
+def test_skips_genuinely_binary_files_even_without_a_null_byte_shortcut():
+    # pixel.png has no BOM and is not valid UTF-8, but it DOES contain
+    # a null byte, which is what correctly marks it as binary (as
+    # opposed to a legacy-encoded text file like cp1252_sample.txt,
+    # which has no null byte and so is read as real text instead).
+    result = grep("anything", "tests/fixtures/pixel.png")
+    assert result == []
 
 
 def test_matches_across_multiple_files():
