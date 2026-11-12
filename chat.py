@@ -343,6 +343,7 @@ class FakeToolCall:
         self.function = FakeFunctionCall(name, arguments)
 
     def model_dump(self):
+        """Return this fake tool call as a plain dict, nesting the function's own model_dump()."""
         return {
             "id": self.id,
             "type": self.type,
